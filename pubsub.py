@@ -1,21 +1,24 @@
 from micropython import schedule
 
 
+def _callback(arg):
+    subscriber, args, kwargs = arg
+    subscriber(*args, **kwargs)
+
+
 class PubSub:
     def __init__(self) -> None:
         self._subscribers = {}
 
     def publish(self, name, *args, **kwargs) -> None:
-        if name not in self._subscribers:
+        try:
+            subscribers = self._subscribers[name]
+        except KeyError:
             return
 
-        arg = (name, args, kwargs)
-
-        for subscriber in self._subscribers[name]:
-            schedule(subscriber, arg)
+        for subscriber in subscribers:
+            schedule(_callback, (subscriber, args, kwargs))
 
     def subscribe(self, name, subscriber) -> None:
-        try:
-            self._subscribers[name].append(subscriber)
-        except KeyError:
-            self._subscribers[name] = [subscriber]
+        self._subscribers.setdefault(name, []).append(subscriber)
+        return subscriber
