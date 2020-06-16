@@ -1,21 +1,33 @@
 from micropython import schedule
 
+_subscribers = {}
 
-class PubSub:
-    def __init__(self) -> None:
-        self._subscribers = {}
 
-    def publish(self, name, *args, **kwargs) -> None:
-        if name not in self._subscribers:
-            return
+def publisher(topic):
+    def _publish(func):
+        def _wrapper(*args, **kwargs):
+            value = func(*args, **kwargs)
+            publish(topic, value)
+            return value
 
-        arg = (name, args, kwargs)
+        return _wrapper
 
-        for subscriber in self._subscribers[name]:
-            schedule(subscriber, arg)
+    return _publish
 
-    def subscribe(self, name, subscriber) -> None:
+
+def publish(topic, value) -> None:
+    if topic not in _subscribers:
+        return
+
+    for subscriber_func in _subscribers[topic]:
+        schedule(subscriber_func, value)
+
+
+def subscriber(topic):
+    def _wrapper(func):
         try:
-            self._subscribers[name].append(subscriber)
+            _subscribers[topic].append(func)
         except KeyError:
-            self._subscribers[name] = [subscriber]
+            _subscribers[topic] = [func]
+
+    return _wrapper
